@@ -1,0 +1,57 @@
+LookupOperation lookupOperation = LookupOperation.newLookup().from("departments").localField("externalId").foreignField("companyExternalId").as("departments");
+LookupOperation lookupOperationEmployees = LookupOperation.newLookup().from("employees").localField("departments.externalId").foreignField("departmentsExternalId").as("employees");
+
+AggregationOperation project = Aggregation.project()
+
+.andExpression("departments.externalId").as("departmentsId")
+.andExpression("departments.name").as("departmentsName")
+.andExpression("employees._id").as("employeesId")
+.andExpression("employeess.name").as("employeeName")
+
+
+
+Aggregation aggregation = Aggregation.newAggregation(Aggregation.match(Criteria.where("externalId").is(Integer.parseInt(companyExternalId))),
+lookupOperation,
+new AggregationOperation() {
+@Override
+public Document toDocument(AggregationOperationContext aoc) {
+return Document.parse("{ \"$addFields\": {\n" +
+" \"employeeDate\": {\n" +
+" \"$map\": {\n" +
+" input: \"$employeeDate\",\n" +
+" as: \"mobj\",\n" +
+" in: {\n" +
+" \"k\": \"$$mobj.type\",\n" +
+" \"v\": \"$$mobj.date\"\n" +
+" }\n" +
+" }\n" +
+" }\n" +
+"} }");
+}
+},
+
+new AggregationOperation() {
+@Override
+public Document toDocument(AggregationOperationContext aoc) {
+return Document.parse("{ \"$addFields\": {\n" +
+" \"employeeDate\": {\n" +
+" \"$arrayToObject\": \"$employeeDate\"\n" +
+" }\n" +
+"} },");
+}
+},
+
+
+Aggregation.unwind("departments"),
+Aggregation.match(Criteria.where("departments.isDeleted").is(false)),
+Aggregation.match(Criteria.where("departments.status").nin("DRAFT")),
+Aggregation.match(Criteria.where("departments.status").nin("WITHDRAWN")),
+lookupOperationEmployees,
+Aggregation.unwind("employees"),
+Aggregation.match(Criteria.where("Employees.isDeleted").is(false)),
+, project);
+
+List<EmployeeSummaryReport> results = mongoTemplate.aggregate(aggregation,"events", EmployeeSummaryReport.class).getMappedResults();
+return results;
+}
+
