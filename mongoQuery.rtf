@@ -1,3 +1,4 @@
+// lookup operation is used for join two collection with te help of id 
 LookupOperation lookupOperation = LookupOperation.newLookup().from("departments").localField("externalId").foreignField("companyExternalId").as("departments");
 LookupOperation lookupOperationEmployees = LookupOperation.newLookup().from("employees").localField("departments.externalId").foreignField("departmentsExternalId").as("employees");
 
@@ -7,8 +8,6 @@ AggregationOperation project = Aggregation.project()
 .andExpression("departments.name").as("departmentsName")
 .andExpression("employees._id").as("employeesId")
 .andExpression("employeess.name").as("employeeName")
-
-
 
 Aggregation aggregation = Aggregation.newAggregation(Aggregation.match(Criteria.where("externalId").is(Integer.parseInt(companyExternalId))),
 lookupOperation,
@@ -41,14 +40,14 @@ return Document.parse("{ \"$addFields\": {\n" +
 }
 },
 
-
+// unwind department collection so we can access properties of deapetmen collection
 Aggregation.unwind("departments"),
 Aggregation.match(Criteria.where("departments.isDeleted").is(false)),
 Aggregation.match(Criteria.where("departments.status").nin("DRAFT")),
 Aggregation.match(Criteria.where("departments.status").nin("WITHDRAWN")),
 lookupOperationEmployees,
 Aggregation.unwind("employees"),
-Aggregation.match(Criteria.where("Employees.isDeleted").is(false)),
+Aggregation.match(Criteria.where("employees.isDeleted").is(false)),
 , project);
 
 List<EmployeeSummaryReport> results = mongoTemplate.aggregate(aggregation,"events", EmployeeSummaryReport.class).getMappedResults();
